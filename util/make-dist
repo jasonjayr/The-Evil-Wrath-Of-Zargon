@@ -1,0 +1,94 @@
+#!/usr/bin/perl -w
+use strict;
+use Text::Markdown;
+use File::Copy qw(cp);
+use File::Path qw(mkpath rmtree);
+use IO::Handle;
+
+
+my $ZVERSION=slurp('VERSION.TXT');
+chomp $ZVERSION;
+my $stage_root = "stage/zargon-$ZVERSION";
+
+rmtree($stage_root) if -d $stage_root;
+
+mkpath($stage_root);
+foreach my $path (glob("*")) { 
+	next if $path eq 'util';
+	next if $path eq 'stage';
+	
+	if($path eq 'DOS') { 
+		# handle this specially, so we don't put
+		# Microsoft's stuff in the bundle
+		mkpath("$stage_root/DOS");
+		open my $place, ">$stage_root/DOS/PlaceHolder.txt";
+		$place->print("This is just a placeholder file so this directory is created.\n  You should place the files you extract from olddos.exe in here.");
+		$place->close();
+
+	}elsif(-d $path) { 
+		mkpath("$stage_root/$path");
+		system("rsync -aq --delete $path/ $stage_root/$path/");
+	} elsif( -f $path) { 
+		system("rsync -aq --delete $path $stage_root/$path");
+	}
+}
+
+make_readme();
+my $archive = "stage/zargon-$ZVERSION.zip";
+# remove it, since we're about to rebuild it.
+unlink $archive if -f $archive;
+
+system("cd stage; zip -rq9 zargon-$ZVERSION.zip zargon-$ZVERSION");
+
+printf "Created $archive, %.2f kB\n", ((-s $archive) / 1024);
+system("md5sum $archive");
+
+# this only works for me on my system w/ vpn keys.
+if($ENV{USER} eq 'mystik') { 
+	system("rsync -avz stage/index.html vps1.jjayr.com:sites/jjayr.com/zargon/index.html");
+	system("rsync -avz $archive vps1.jjayr.com:sites/jjayr.com/zargon/");
+}
+
+
+
+
+sub make_readme {
+	
+	my @lines = slurp('README.md');
+	s/^Version:.*$/Version: $ZVERSION/ foreach @lines;
+	s/^Release Date:.*$/"Release Date: ".scalar(localtime)/e foreach @lines;
+
+	my $markdown = join('', @lines);
+
+	open my $readme_out,">","$stage_root/README.html";
+	open my $readme_out_txt,">","$stage_root/README.md";
+	
+	$readme_out_txt->print($markdown);
+
+	my $html = Text::Markdown::Markdown($markdown);
+
+	$readme_out->print(scalar(slurp("util/readme_header")));
+	$readme_out->print($html);
+	$readme_out->print("</body></html>");
+	$readme_out->close();
+
+	$html =~ s#(<p>Release Date.*</p>)#$1\n<p><a href="zargon-$ZVERSION.zip">Download Zargon $ZVERSION Here</a></p>#;
+	
+	open my $index,">stage/index.html";
+	$index->print(scalar(slurp("util/readme_header")));
+	$index->print($html);
+	$index->print("</body></html>");
+	$index->close();
+
+}
+
+
+sub slurp { 
+	my ($fn) = @_;
+	
+	open my $file, "<$fn";
+	my @buf;
+	push @buf, $file->getline while (!$file->eof);
+	return @buf if wantarray;
+	return join('',@buf);
+}
