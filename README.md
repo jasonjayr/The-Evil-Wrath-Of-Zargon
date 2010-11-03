@@ -1,14 +1,17 @@
 The Wrath Of Zargon!
 ====================
-Version: 1.0
+Version: (filled out by release script)
 
-Release Date:
+Release Date: (filled out by release script)
+
+[Github project](https://github.com/jasonjayr/The-Evil-Wrath-Of-Zargon)
+
+[Home page](http://www.jjayr.com/zargon/)
 
 This codebase represents the efforts of a bunch of high-school kids back in
 1998-1999.  We've all moved on and grown up, some of us on to professional
 software development too, but this project still lingers at the back of our
 heads as one of our first multi-developer projects.
-
 
 DISCLAIMER
 ==========
